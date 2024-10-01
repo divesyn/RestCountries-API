@@ -112,10 +112,13 @@ h4 {
 }
 
 .nav input {
+    background: url("https://icon-library.com/images/search-icon-html/search-icon-html-2.jpg") no-repeat;
+    background-size: 15px 15px;
+    background-position: 7px center;
     width: 200px;
     height: 30px;
     border: 0px;
-    padding: 0px 10px 0px 10px;
+    padding: 0px 10px 0px 30px;
 }
 
 /* configuração dos menus dropdown */
@@ -231,6 +234,10 @@ h4 {
     }
     .caixa-pais2 img {
         width: 220px;
+    }
+    .nav input {
+        text-align: center;
+        padding: 0px 10px 0px 10px;
     }
 }
 @media (max-width: 1080px) {
