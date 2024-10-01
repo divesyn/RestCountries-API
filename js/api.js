@@ -1,5 +1,7 @@
-let paisesDataOriginal = [];
-let paisesFiltradosData = [];
+let paisesDataOriginal = []; // lista com os dados originais
+let paisesFiltradosData = []; // lista com os dados filtrados
+let paisesCarregados = 0; // controla quantos países foram carregados
+const quantidadeParaCarregar = 20; // quantidade de países a carregar a cada scroll
 
 // mudança de idiomas das regiões e subregiões para as opções de filtro e ordenação funcionarem sem precisar deixar o HTML em inglês
 const regiaoParaIngles = {
@@ -38,7 +40,11 @@ const subRegiaoParaIngles = {
 const carregarAPI = () => {
     fetch('https://restcountries.com/v3.1/all')
     .then(res => res.json())
-    .then(data => {paisesDataOriginal = data; mostrarPaises(data)}) // armazena a lista de paises numa variavel global e mostra ela
+    .then(data => { 
+        paisesDataOriginal = data; // armazena a lista original
+        paisesFiltradosData = [...data]; // inicializa com todos os países
+        paisesCarregados = Math.min(quantidadeParaCarregar, paisesFiltradosData.length); // carrega a quantidade inicial
+        mostrarPaises()}) 
 }
 
 // chama a função para carregar a api
@@ -46,14 +52,10 @@ carregarAPI()
 
 // mostrar os países da api
 const mostrarPaises = paises => {
-    if (!paises || paises.length === 0) {
-        document.getElementById('paises').innerHTML = '<p>Nenhum país encontrado.</p>';
-        return;
-    }
-
-    const paisesHTML = paises.map(pais => getPais(pais));
+    const paisesParaMostrar = paisesFiltradosData.slice(0, paisesCarregados); // carrega apenas os países que devem ser exibidos
+    const paisesHTML = paisesParaMostrar.map(pais => getPais(pais)).join('');
     const container = document.getElementById('paises');
-    container.innerHTML = paisesHTML.join('');
+    container.innerHTML = paisesHTML || '<h2>Nenhum país encontrado.</h2>'; // mensagem se não houver países
 }
 
 // pegar os dados e jogar no html
@@ -71,34 +73,35 @@ const getPais = (pais) => {
 
 // abrir página do país
 const abrirPaginaDetalhes = (paisNome) => {
-    // Redireciona para a página de detalhes com o nome do país na URL
+    // redireciona para a página de detalhes com o nome do país na URL
     window.location.href = `detalhes.html?pais=${encodeURIComponent(paisNome)}`;
 };
 
 // função de busca
-const filtrarPaises = (termobusca) => {
-    paisesFiltradosData = paisesDataOriginal; // reseta a lista filtrada
+const buscarPaises = (termobusca) => {
     document.getElementById('ordenacao-ativa').textContent = 'Ordenar'; // reseta ordenação
     document.getElementById('filtro-ativo').textContent = 'Filtrar'; // reseta filtro
-    const paisesParaFiltrar = paisesFiltradosData.length > 0 ? paisesFiltradosData : paisesDataOriginal;
-    paisesFiltradosData = paisesParaFiltrar.filter(pais =>
+    paisesFiltradosData = paisesDataOriginal.filter(pais =>
         pais.name.common.toLowerCase().includes(termobusca.toLowerCase()) || 
-        pais.translations.por.common.toLowerCase().includes(termobusca.toLowerCase())
+        (pais.translations && pais.translations.por && pais.translations.por.common.toLowerCase().includes(termobusca.toLowerCase()))
     );
-    mostrarPaises(paisesFiltradosData);
+    paisesCarregados = Math.min(quantidadeParaCarregar, paisesFiltradosData.length); // atualiza a quantidade de países carregados
+    mostrarPaises();
 }
 
 // evento de busca ao digitar no campo de texto
 document.getElementById('busca').addEventListener('input', (e) => {
     const termobusca = e.target.value;
-    filtrarPaises(termobusca); // filtra os países conforme o termo digitado
+    buscarPaises(termobusca); // filtra os países conforme o termo digitado
 });
 
 // botão de limpar busca (que também reseta a ordenação e filtro)
 document.getElementById('limpar').addEventListener('click', () => {
+    window.scroll(0, 0); // sobe a página até o topo
     document.getElementById('busca').value = ''; // limpa o campo de busca
-    mostrarPaises(paisesDataOriginal); // mostra todos os países novamente
-    paisesFiltradosData = []; // reseta os países filtrados
+    paisesFiltradosData = [...paisesDataOriginal]; // reseta os países filtrados
+    paisesCarregados = Math.min(quantidadeParaCarregar, paisesFiltradosData.length); // atualiza a quantidade
+    mostrarPaises();
 
     // atualiza o texto exibido para filtros e ordenações
     document.getElementById('filtro-ativo').textContent = 'Filtrar';
@@ -107,38 +110,44 @@ document.getElementById('limpar').addEventListener('click', () => {
 
 // funções de ordenação
 const ordenarNomeAZ = () => {
-    const paisesOrdenados = [...(paisesFiltradosData.length ? paisesFiltradosData : paisesDataOriginal)].sort((a, b) => a.name.common.localeCompare(b.name.common));
-    mostrarPaises(paisesOrdenados);
-    document.getElementById('ordenacao-ativa').textContent = 'Nome (A-Z)';
+    paisesFiltradosData.sort((a, b) => a.name.common.localeCompare(b.name.common)); // tipo de ordenação (neste caso, alfabetica)
+    paisesCarregados = Math.min(quantidadeParaCarregar, paisesFiltradosData.length); // atualiza a quantidade
+    mostrarPaises();
+    document.getElementById('ordenacao-ativa').textContent = 'Nome (A-Z)'; // exibe qual ordenação está em vigor
 }
 
 const ordenarNomeZA = () => {
-    const paisesOrdenados = [...(paisesFiltradosData.length ? paisesFiltradosData : paisesDataOriginal)].sort((a, b) => b.name.common.localeCompare(a.name.common));
-    mostrarPaises(paisesOrdenados);
+    paisesFiltradosData.sort((a, b) => b.name.common.localeCompare(a.name.common));
+    paisesCarregados = Math.min(quantidadeParaCarregar, paisesFiltradosData.length);
+    mostrarPaises();
     document.getElementById('ordenacao-ativa').textContent = 'Nome (Z-A)';
 }
 
 const ordenarPopulacaoCrescente = () => {
-    const paisesOrdenados = [...(paisesFiltradosData.length ? paisesFiltradosData : paisesDataOriginal)].sort((a, b) => a.population - b.population);
-    mostrarPaises(paisesOrdenados);
+    paisesFiltradosData.sort((a, b) => a.population - b.population);
+    paisesCarregados = Math.min(quantidadeParaCarregar, paisesFiltradosData.length);
+    mostrarPaises();
     document.getElementById('ordenacao-ativa').textContent = 'População crescente';
 }
 
 const ordenarPopulacaoDecrescente = () => {
-    const paisesOrdenados = [...(paisesFiltradosData.length ? paisesFiltradosData : paisesDataOriginal)].sort((a, b) => b.population - a.population);
-    mostrarPaises(paisesOrdenados);
+    paisesFiltradosData.sort((a, b) => b.population - a.population);
+    paisesCarregados = Math.min(quantidadeParaCarregar, paisesFiltradosData.length);
+    mostrarPaises();
     document.getElementById('ordenacao-ativa').textContent = 'População decrescente';
 }
 
 const ordenarAreaCrescente = () => {
-    const paisesOrdenados = [...(paisesFiltradosData.length ? paisesFiltradosData : paisesDataOriginal)].sort((a, b) => a.area - b.area);
-    mostrarPaises(paisesOrdenados);
+    paisesFiltradosData.sort((a, b) => a.area - b.area);
+    paisesCarregados = Math.min(quantidadeParaCarregar, paisesFiltradosData.length);
+    mostrarPaises();
     document.getElementById('ordenacao-ativa').textContent = 'Área crescente';
 }
 
 const ordenarAreaDecrescente = () => {
-    const paisesOrdenados = [...(paisesFiltradosData.length ? paisesFiltradosData : paisesDataOriginal)].sort((a, b) => b.area - a.area);
-    mostrarPaises(paisesOrdenados);
+    paisesFiltradosData.sort((a, b) => b.area - a.area);
+    paisesCarregados = Math.min(quantidadeParaCarregar, paisesFiltradosData.length);
+    mostrarPaises();
     document.getElementById('ordenacao-ativa').textContent = 'Área decrescente';
 }
 
@@ -153,44 +162,34 @@ document.getElementById('ordenar-area-decrescente').addEventListener('click', or
 
 
 // funções de filtro
-const filtrarPorRegiao = (regiao) => {
-    paisesFiltradosData = paisesDataOriginal; // limpa a lista com a original antes de filtrar
-    document.getElementById('ordenacao-ativa').textContent = 'Ordenar'; // limpa ordenação, caso exista
+const filtrarPorRegiao = (regiao) => { 
     const regiaoEmIngles = regiaoParaIngles[regiao] || regiao; // troca de idiomas
-    const paisesParaFiltrar = paisesFiltradosData.length > 0 ? paisesFiltradosData : paisesDataOriginal;
-
-    paisesFiltradosData = paisesParaFiltrar.filter(pais => 
-        pais.region.toLowerCase() === regiaoEmIngles.toLowerCase()
-    );
-
-    mostrarPaises(paisesFiltradosData);
+    paisesFiltradosData = paisesDataOriginal.filter(pais => pais.region.toLowerCase() === regiaoEmIngles.toLowerCase()); // tipo de filtro
+    paisesCarregados = Math.min(quantidadeParaCarregar, paisesFiltradosData.length); // atualiza a quantidade
+    mostrarPaises();
+    document.getElementById('ordenacao-ativa').textContent = 'Ordenar'; // limpa ordenação, caso exista
 }
 
 const filtrarPorSubRegiao = (subRegiao) => {
-    paisesFiltradosData = paisesDataOriginal;
-    document.getElementById('ordenacao-ativa').textContent = 'Ordenar';
     const subRegiaoEmIngles = subRegiaoParaIngles[subRegiao] || subRegiao;
-    const paisesParaFiltrar = paisesFiltradosData.length > 0 ? paisesFiltradosData : paisesDataOriginal;
-
-    paisesFiltradosData = paisesParaFiltrar.filter(pais => 
+    paisesFiltradosData = paisesDataOriginal.filter(pais => 
         pais.subregion && pais.subregion.toLowerCase() === subRegiaoEmIngles.toLowerCase()
     );
-
-    mostrarPaises(paisesFiltradosData);
-}
-const filtrarPorPopulacao = (min, max) => {
-    paisesFiltradosData = paisesDataOriginal;
+    paisesCarregados = Math.min(quantidadeParaCarregar, paisesFiltradosData.length);
+    mostrarPaises();
     document.getElementById('ordenacao-ativa').textContent = 'Ordenar';
-    const paisesParaFiltrar = paisesFiltradosData.length > 0 ? paisesFiltradosData : paisesDataOriginal;
+}
 
-    paisesFiltradosData = paisesParaFiltrar.filter(pais => {
+const filtrarPorPopulacao = (min, max) => {
+    paisesFiltradosData = paisesDataOriginal.filter(pais => {
         if (max === undefined) {
             return pais.population >= min;
         }
         return pais.population >= min && pais.population < max;
     });
-
-    mostrarPaises(paisesFiltradosData);
+    paisesCarregados = Math.min(quantidadeParaCarregar, paisesFiltradosData.length);
+    mostrarPaises();
+    document.getElementById('ordenacao-ativa').textContent = 'Ordenar';
 }
 
 // eventos de clique para os filtros
@@ -198,7 +197,7 @@ document.querySelectorAll('[data-filter="regiao"]').forEach(button => {
     button.addEventListener('click', (e) => {
         const regiao = e.target.textContent;
         filtrarPorRegiao(regiao);
-        document.getElementById('filtro-ativo').textContent = regiao;
+        document.getElementById('filtro-ativo').textContent = regiao; // exibe qual filtro está em vigor
     });
 });
 
@@ -219,3 +218,17 @@ document.querySelectorAll('[data-filter="populacao"]').forEach(button => {
         document.getElementById('filtro-ativo').textContent = e.target.textContent;
     });
 });
+
+// scroll infinito
+window.addEventListener('scroll', () => {
+    if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 200) { // 200px do final
+        carregarMaisPaises();
+    }
+});
+
+const carregarMaisPaises = () => {
+    if (paisesCarregados < paisesFiltradosData.length) {
+        paisesCarregados += quantidadeParaCarregar; // adiciona a quantidade a mais
+        mostrarPaises();
+    }
+};
